@@ -1,7 +1,209 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><script>
-window.onload=()=>{
-  fetch('sistema_jdp/kernel.dat').then(r=>r.text()).then(h=>{
-    document.open(); document.write(atob(h)); document.close();
-  }).catch(()=>document.body.innerHTML="ERRO");
-};
-</script></head><body style="background:#000;"></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DONY BURGUERS SUPREME">
+    
+    <title>DONY BURGUERS SUPREME - JDP INDUSTRIAL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <style>
+        :root { 
+            --gold-18k: linear-gradient(145deg, #bf953f 0%, #fcf6ba 20%, #b38728 40%, #fcf6ba 60%, #aa771c 80%, #fcf6ba 100%);
+            --gold-solid: #d4af37;
+            --dark: #000;
+        }
+        body { background: var(--dark); color: var(--gold-solid); font-family: 'Arial Black', sans-serif; margin: 0; padding: 110px 3% 130px 3%; user-select: none; -webkit-user-select: none; overflow-x: hidden; }
+        
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 95px; background: #000; border-bottom: 3px solid var(--gold-solid); z-index: 1000; display: flex; justify-content: space-between; align-items: center; padding: 0 5%; }
+        .jdp-signature { font-size: 9px; color: var(--gold-solid); text-transform: uppercase; letter-spacing: 1px; }
+        #total-display { font-size: 26px; font-weight: 900; background: var(--gold-18k); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .btn-google { background: var(--gold-18k); color: #000; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 0 15px var(--gold-solid); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .card { background: #050505; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; position: relative; height: 220px; transition: 0.2s; cursor: pointer; }
+        .card.selecionado { border: 3px solid var(--gold-solid); transform: scale(0.96); box-shadow: 0 0 15px var(--gold-solid); }
+        .card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .card-info { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.85); padding: 8px; text-align: center; }
+        
+        .btn-confirmar { position: fixed; bottom: 25px; left: 5%; width: 90%; background: #00ff00; color: #000; padding: 20px; border: none; border-radius: 12px; font-weight: 900; font-size: 1.5rem; z-index: 1100; display: none; box-shadow: 0 0 20px #00ff00; }
+        
+        #modal-qrcode { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 20000; flex-direction: column; align-items: center; justify-content: center; border: 5px solid var(--gold-solid); }
+        #qr-box { background: #fff; padding: 15px; border-radius: 15px; margin: 15px 0; border: 5px solid var(--gold-solid); }
+        .valor-tela { font-size: 3.5rem; color: #fff; font-weight: 900; margin: 10px 0; }
+
+        #supreme-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 30000; flex-direction: column; align-items: center; justify-content: center; }
+        .gold-title { font-size: 10vw; font-weight: 900; background: var(--gold-18k); -webkit-background-clip: text; -webkit-text-fill-color: transparent; position: absolute; text-align: center; }
+        .slide-active { animation: slidePass 1.2s ease-in-out 1; }
+        @keyframes slidePass { 0% { transform: translateX(-150%); } 50% { transform: translateX(0%); } 100% { transform: translateX(150%); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="jdp-signature">Eng. José Divino Prado da Lapa</div>
+            <button class="btn-google" onclick="ativarModoPagar()">PAGAR (PIX)</button>
+        </div>
+        <div id="total-display">R$ 0,00</div>
+    </div>
+
+    <div class="grid" id="vitrine"></div>
+    
+    <button id="btn-final-jdp" class="btn-confirmar" onclick="processarVendaCompleta()">GERAR QR CODE</button>
+
+    <div id="modal-qrcode">
+        <div style="color: var(--gold-solid); font-size: 1.2rem;">PAGAMENTO PARA JOSÉ DIVINO</div>
+        <div id="valor-pix-final" class="valor-tela">R$ 0,00</div>
+        <div id="qr-box"></div>
+        <div style="color: #fff; font-size: 0.9rem; margin-bottom: 20px;">Diga "JÁ FOI PAGO" para encerrar</div>
+        <button onclick="location.reload()" style="background:#333; color:#fff; border:none; padding:12px 40px; border-radius:8px; font-weight:bold;">CANCELAR</button>
+    </div>
+
+    <div id="supreme-overlay">
+        <div id="gold-anim" class="gold-title">DONY BURGUERS</div>
+        <div id="msg-obrigado" style="display:none;" class="gold-title">OBRIGADO!</div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE JDP
+        const firebaseConfig = { apiKey: "AIzaSyCEdXF7ScnMYz0Ce0OW-B_UJ8Bm5Pl9m8o", databaseURL: "https://dony-burguers-default-rtdb.firebaseio.com" };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.database();
+
+        let carrinho = [], produtos = [], modoPagar = false;
+
+        // COMANDO DE VOZ
+        function iniciarVoz() {
+            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (Speech) {
+                const rec = new Speech();
+                rec.continuous = true; rec.lang = 'pt-BR';
+                rec.onresult = (e) => {
+                    const texto = e.results[e.results.length - 1][0].transcript.toLowerCase();
+                    if (texto.includes("já foi pago")) encerrarComObrigado();
+                };
+                rec.start();
+            }
+        }
+        document.body.addEventListener('click', () => iniciarVoz(), {once: true});
+
+        // VITRINE EM TEMPO REAL
+        db.ref('cardapio_supreme').on('value', snap => {
+            const data = snap.val(); 
+            produtos = data ? Object.entries(data).map(([id, val]) => ({id, ...val})) : [];
+            document.getElementById('vitrine').innerHTML = produtos.map(p => `
+                <div class="card" id="card-${p.id}" onclick="add('${p.id}')">
+                    <img src="${p.link}">
+                    <div class="card-info"><h4>${p.nome}</h4><div style="color:var(--gold-solid)">R$ ${p.preco}</div></div>
+                </div>`).join('');
+        });
+
+        function ativarModoPagar() {
+            modoPagar = true;
+            document.getElementById('btn-final-jdp').style.display = 'block';
+        }
+
+        function add(id) {
+            if(!modoPagar) return;
+            const p = produtos.find(x => x.id === id);
+            carrinho.push(p);
+            document.getElementById(`card-${id}`).classList.add('selecionado');
+            const total = carrinho.reduce((acc, i) => acc + parseFloat(i.preco.toString().replace(',','.')), 0);
+            document.getElementById('total-display').innerText = `R$ ${total.toFixed(2).replace('.',',')}`;
+        }
+
+        // MOTOR DE PAYLOAD PIX SOBERANO
+        function gerarPayloadPix(chave, nome, cidade, valor) {
+    // 1. Limpa o nome (tira acentos e deixa maiúsculo)
+    const nomeLimpo = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const cidadeLimpa = cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    
+    const v = valor.toFixed(2);
+    const vSize = v.length.toString().padStart(2, '0');
+    const nSize = nomeLimpo.length.toString().padStart(2, '0');
+    const cSize = cidadeLimpa.length.toString().padStart(2, '0');
+    
+    // Montagem do Payload (Campos 58, 59 e 60 são cruciais)
+    let payload = "00020101021226580014br.gov.bcb.pix0128" + chave + 
+                  "52040000530398654" + vSize + v + 
+                  "5802BR" + 
+                  "59" + nSize + nomeLimpo + 
+                  "60" + cSize + cidadeLimpa + 
+                  "62070503***6304";
+    
+    // Função Matemática CRC16 CCITT (O "Segredo" para os outros bancos aceitarem)
+    function calcularCRC16(data) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < data.length; i++) {
+            crc ^= data.charCodeAt(i) << 8;
+            for (let j = 0; j < 8; j++) {
+                if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+                else crc <<= 1;
+            }
+        }
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    }
+    
+    return payload + calcularCRC16(payload);
+}
+
+
+        async function processarVendaCompleta() {
+            const total = carrinho.reduce((acc, i) => acc + parseFloat(i.preco.toString().replace(',','.')), 0);
+            if(total <= 0) return;
+
+            const overlay = document.getElementById('supreme-overlay');
+            const goldAnim = document.getElementById('gold-anim');
+            overlay.style.display = 'flex';
+            goldAnim.classList.add('slide-active');
+            
+            await new Promise(r => setTimeout(r, 1500));
+            overlay.style.display = 'none';
+
+            // Geração de QR Code com Valor Somado
+            const pixFinal = gerarPayloadPix("josedivinoprado649@gmail.com", "JOSE DIVINO PRADO DA LAPA", "MANAUS", total);
+
+            document.getElementById('valor-pix-final').innerText = `R$ ${total.toFixed(2).replace('.',',')}`;
+            const qrBox = document.getElementById('qr-box');
+            qrBox.innerHTML = "";
+            new QRCode(qrBox, { 
+                text: pixFinal, 
+                width: 256, 
+                height: 256, 
+                colorDark: "#000000", 
+                colorLight: "#ffffff", 
+                correctLevel: QRCode.CorrectLevel.H 
+            });
+
+            document.getElementById('modal-qrcode').style.display = 'flex';
+
+            // Registro no Firebase
+            db.ref('PEDIDOS_PRODUCAO').push({ 
+                itens: carrinho.map(c => c.nome), 
+                total: total.toFixed(2), 
+                data: new Date().toLocaleString() 
+            });
+        }
+
+        async function encerrarComObrigado() {
+            document.getElementById('modal-qrcode').style.display = 'none';
+            const overlay = document.getElementById('supreme-overlay');
+            const msg = document.getElementById('msg-obrigado');
+            document.getElementById('gold-anim').style.display = 'none';
+            overlay.style.display = 'flex';
+            msg.style.display = 'block';
+            await new Promise(r => setTimeout(r, 3000));
+            location.reload(); 
+        }
+    </script>
+</body>
+</html>
+
