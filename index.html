@@ -1,0 +1,7 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><script>
+window.onload=()=>{
+  fetch('sistema_jdp/kernel.dat').then(r=>r.text()).then(h=>{
+    document.open(); document.write(atob(h)); document.close();
+  }).catch(()=>document.body.innerHTML="ERRO");
+};
+</script></head><body style="background:#000;"></body></html>
